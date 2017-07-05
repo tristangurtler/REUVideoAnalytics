@@ -1,157 +1,204 @@
+##
+# REUVideoDecoder.py
+# This program obtains timestamps from our videos marking when asterisks appear on our ATM
+# @author: Denisolt Shakhbulatov, Kendall Molas, Tristan Gurtler
 
-# coding: utf-8
-
-# In[1]:
-
-# Thank you to Denisolt, https://github.com/Denisolt
-# Package imports
 from PIL import Image
 import sys
 import pandas as pd
 import os
 import csv
 
+# units are frames/second
+VIDEO_RECORDING_FREQUENCY = 120
 
-# In[2]:
+##
+# This function takes a video and converts it (using system commands) to a CSV file in our current directory
+#
+# @input video_name - the name of the video file we want to convert
+def create_CSV_from_video(video_name):
+    ##
+    # This is a range (from a pixel 150 from the left and 200 from the top,
+    # to 990 from the left and 500 from the top) that should be able to
+    # capture the PIN entry box in the video (this is determined empirically)
+    frame_cropper_range = "150:200:990:500"
 
-# Creates directory for frames to be stored, gets frames of videos, and stores timestamps in a csv file
-try:
+    ##
+    # This sets the frame image names to be 6 digit numbers that are zero-padded on the left.
+    # Larger videos may require more padding
+    image_name_template = "%06d"
+
+    # Create the directory for frames to be stored
     os.system("mkdir images")
-    # Contrast with dark video has to be brightened via video editor and then contrast ranges from 12-22
-    # After the -i, input the video file name to be processed
-    # use crop: 150:200:840:500 for standard, crops will have to be changed from time to time due to video camera placement
-    # With larger videos change the %.png to a larger number than 04d 
-    os.system("ffmpeg -i [insert.mp4 here] -an -vf crop=150:200:990:500,eq=contrast=10 images/%06d.png") 
-    # After the -i, input the video file name to be processed, change frames2.csv if needed
-    os.system("ffprobe -f lavfi -i movie=[insert.mp4 here] -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
-    print 'Successful'
-except:
-    print 'Error Occurred'
+
+    ##
+    # Get every frame from our videos into its own .png file
+    #
+    # Note that we assume the contrast is sufficiently high so that we can better distinguish asterisks from their background
+    # (this can be accomplished with external video editors, if necessary)
+    os.system("ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
+
+    # And convert the frames into a large CSV file for processing
+    os.system("ffprobe -f lavfi -i movie=" + video_name + " -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
+
+##
+# This function checks if the image we are looking at is actually a PIN entry screen at all
+#
+# @input image - the image we want to check for being a PIN Entry screen
+# @returns whether or not we are in a PIN Entry screen
+def is_in_PIN_entry(image):
+    ##
+    # This is a location (determined empirically) that should always be inside the PIN entry box
+    # (i.e. blank and white) unless we are in a screen that is not PIN entry (where it will not be white)
+    background_coordinate = (34,24)
+    val = image.getpixel(background_coordinate)
+    
+    # Return whether or not our chosen location is white, and therefore if it is in the PIN entry box
+    return val == (255,255,255)
 
 
-# In[3]:
+# This function checks if a given color (by rgb values) is black or gray
+def is_color_black(r, g, b):
+    flag_color_is_grayscale = r == g and g == b
+    flag_color_is_dark = r <= 211 and g <= 211 and b <= 211
+    
+    return flag_color_is_grayscale and flag_color_is_dark
 
-# Analyization of the background
-def analys(i,k):
-    val = rgb_im.getpixel((i, k))
-    # values inside getpixel are the px of the location of each symbol
-    if(val == (255,255,255)):
-        return False
-    else:
-        return True
-
-
-# In[4]:
-
-# Analyization of the pixels, checks two areas because there's a shift on where the hashes are placed
-def analys2(i,k,m,n) :
-    val0 = rgb_im.getpixel((i,k))
-    val1 = rgb_im.getpixel((m,n))
-    r0,g0,b0 = val0
-    r1,g1,b1 = val1
-    if ((abs(r0-g0) <= 5 and abs(b0-g0) <= 3) or (abs(r1-g1) <= 5 and abs(b1-g1) <= 3)):
-        if (checkForBlack(val0) == True or checkForBlack(val1) == True):
+##
+# This function checks at specified locations to determine if an asterisk is present there
+#
+# @input image - the image we want to check if an asterisk has appeared inside of
+# @input coord - the coordinate we want to check if an asterisk has appeared at
+# @returns whether or not an asterisk has appeared at the specified location
+def is_asterisk_present(image, coord):
+    r, g, b = image.getpixel(coord)
+    
+    # if the individual color values are similar enough, check if it's black
+    if abs(r - g) <= 5 and abs(b - g) <= 3:
+        if is_color_black(r, g, b):
             return True
-        elif (val0 == (255,255,255) or val1 == (255,255,255)):
+        elif r, g, b == (255,255,255):
             return
         else:
             return 'NaN'
     else:
         return False
 
+##
+# This function runs through every frame we collected and checks if asterisks have appeared in each
+#
+# @returns a dictionary where the keys are frame numbers and the values are a list of booleans showing what asterisks have appeared
+def find_asterisk_appearances():
+    # the directory where all our frame images are
+    indir = 'images'
 
-# In[5]:
+    ##
+    # default locations for each asterisk
+    # (there are two for each, because they move on our feed sometimes)
+    # (determined empirically)
+    first_asterisk_loc_1 = (59, 37)
+    first_asterisk_loc_2 = (53, 35)
+    second_asterisk_loc_1 = (56, 55)
+    second_asterisk_loc_2 = (44, 52)
+    third_asterisk_loc_1 = (53, 74)
+    third_asterisk_loc_2 = (42, 71)
+    fourth_asterisk_loc_1 = (49, 94)
+    fourth_asterisk_loc_2 = (38, 91)
 
-def checkForBlack(rgb_val):
-    if (rgb_val == (0,0,0) or rgb_val == (192,192,192) or rgb_val == (169,169,169) or rgb_val == (128, 128, 128)
-       or rgb_val == (105, 105, 105) or rgb_val == (211, 211, 211)):
-        return True
+    asterisk_appearances = dict()
+    frame = 0
 
+    # walk through every frame
+    for root, dirs, filenames in os.walk(indir):
+        for f in sorted(os.listdir(indir)):
+            im = Image.open(open(os.path.join(root, f), 'r'))
+            rgb_im = im.convert('RGB')
 
-# In[6]:
+            # ignore all cases where we're just looking at things that aren't PIN entry
+            if is_in_PIN_entry(rgb_im):
+                # but check on each asterisk in all frames that are PIN entry
+                first_asterisk = is_asterisk_present(rgb_im, first_asterisk_loc_1) or is_asterisk_present(rgb_im, first_asterisk_loc_2)
+                second_asterisk = is_asterisk_present(rgb_im, second_asterisk_loc_1) or is_asterisk_present(rgb_im, second_asterisk_loc_2)
+                third_asterisk = is_asterisk_present(rgb_im, third_asterisk_loc_1) or is_asterisk_present(rgb_im, third_asterisk_loc_2)
+                fourth_asterisk = is_asterisk_present(rgb_im, fourth_asterisk_loc_1) or is_asterisk_present(rgb_im, fourth_asterisk_loc_2)
+                
+                asterisk_appearances[frame] = [first_asterisk, second_asterisk, third_asterisk, fourth_asterisk]
+            
+            frame += 1
 
-df = pd.DataFrame()
-time_stamp = 0
-frame = 0
-indir = 'images'
-# f(73,31) s(67,49) t(61,66) fth(58.83), bg(34,24) for standard
-for root, dirs, filenames in os.walk(indir):
-    for f in sorted(os.listdir(indir)):
-        log = open(os.path.join(root, f), 'r')
-        im = Image.open(log)
-        pix = im.load()
-        rgb_im = im.convert('RGB')    
-        first_symb = analys2(59,37,53,35)
-        second_symb = analys2(56,55,44,52)
-        third_symb = analys2(53,74,42,71)
-        fourth_symb = analys2(49,94,38,91)
-        background = analys(34,24)
-        if(background == False):
-            df = df.append(pd.DataFrame({'Background': background, 'First': first_symb, 'Second': second_symb, 'Third': third_symb, 'Fourth': fourth_symb, }, index=[frame]), ignore_index=False)
+    return asterisk_appearances
+
+##
+# This function traces through every asterisk appearance and tracks the real time difference between asterisk appearances, per PIN
+#
+# @input asterisk_appearances - the dictionary of frames to what asterisks have appeared
+# @returns a list of lists, where each sublist is the timings associated with an individual PIN entry
+def obtain_timing_sequences(asterisk_appearances):
+    list_of_all_pin_entries = []
+    
+    prev_frame = 0
+    num_asterisks = 0
+    current_pin_entry = []
+    
+    for frame, asterisks in asterisk_appearances.items():
+        # when no asterisks have appeared yet, just watch for the first
+        if num_asterisks == 0:
+            if asterisks[0]:
+                prev_frame = frame
+                num_asterisks += 1
+
+        # after one asterisk has appeared...
+        elif num_asterisks == 1:
+            # ...watch for it to be deleted; if so, it's not a big deal, we start over from scratch
+            if not asterisks[0]:
+                num_asterisks -= 1
+                current_pin_entry = []
+            # ...watch for the next one; jot down the frame difference between appearances and move on
+            elif asterisks[1]:
+                current_pin_entry.append(frame - prev_frame)
+                prev_frame = frame
+                num_asterisks += 1
+
+        # after multiple asterisks have appeared...
+        elif num_asterisks == 2 or num_asterisks == 3:
+            # ...watch for them to be deleted; if so, there will necessarily be a "CLEAR" press in the middle of our data. Jot it down
+            if not asterisks[num_asterisks - 1]:
+                current_pin_entry.append(frame - prev_frame)
+                prev_frame = frame
+                num_asterisks -= 1
+            # ...watch for the next one again and move on
+            elif asterisks[num_asterisks]:
+                current_pin_entry.append(frame - prev_frame)
+                prev_frame = frame
+                num_asterisks += 1
+
+        # after 4 asterisks have appeared...
         else:
-            df = df.append(pd.DataFrame({'Background': background, 'First': 'NaN', 'Second': 'NaN', 'Third': 'NaN', 'Fourth': 'NaN', }, index=[frame]), ignore_index=False)
-        frame = frame + 1
+            # watch until something happens
+            if not asterisks[3]:
+                # if all asterisks are gone, enter was pressed: jot it down and look for a new PIN
+                if not asterisks[2] and not asterisks[1] and not asterisks[0]:
+                    current_pin_entry.append(frame - prev_frame)
+                    list_of_all_pin_entries.append(current_pin_entry)
+                    current_pin_entry = []
+                    num_asterisks = 0
+                # if the last asterisk is the only one missing, clear was pressed. Jot it down, but stay on this PIN
+                else:
+                    current_pin_entry.append(frame - prev_frame)
+                    prev_frame = frame
+                    num_asterisks -= 1
 
-df.head(10) # Here for debugging purposes
+    # turn our frame difference timings into real world timings (in microseconds)
+    list_of_all_pin_entries = [[float(x * (10 ** 6)) / VIDEO_RECORDING_FREQUENCY for x in sublist] for sublist in list_of_all_pin_entries]
+    return list_of_all_pin_entries
 
+def main():
+    create_CSV_from_video("[insert.mp4 here]")
+    asterisk_appearances = find_asterisk_appearances()
+    pin_entries = obtain_timing_sequences(asterisk_appearances)
 
-# In[8]:
+    print "Timings between keystrokes in microseconds:"
+    for single_pin in pin_entries
+        print ", ".join(sublist)
 
-# Reads from frames2.csv file and combines to have timestamp and dataframe together
-Time = pd.read_csv("frames.csv", 
-                  names = ["Time_stamp"])
-result = pd.concat([df, Time], axis=1, join='inner')
-
-result = result.reindex(columns=['Time_stamp','Background', 'First', 'Second', 'Third', 'Fourth']).to_csv('results.csv', index=True)
-result
-
-
-# In[47]:
-
-# Purpose of this is to read results csv file and return only the relevant indexes with specific keypresses
-# need help with outputting the relevant indexes with the True values to another csv (?)
-newReader = pd.read_csv('results.csv')
-firstKP = False
-secondKP = False
-thirdKP = False
-fourthKP = False
-pinFound = False
-for index, row in newReader.iterrows():
-    if (pinFound == False):
-        if (newReader.First.iloc[index] == True and firstKP == False and pd.isnull(newReader['Second'].iloc[index]) == True
-           and pd.isnull(newReader['Third'].iloc[index]) == True and pd.isnull(newReader['Fourth'].iloc[index]) == True):
-            #print newReader.iloc[[index]] #These are here just incase
-            print newReader.Time_stamp.iloc[[index]]
-            firstKP = True
-        elif (newReader.Second.iloc[index] == True and secondKP == False and pd.isnull(newReader['Third'].iloc[index]) == True
-             and pd.isnull(newReader['Fourth'].iloc[index]) == True):
-            #print newReader.iloc[[index]]
-            print newReader.Time_stamp.iloc[[index]]
-            secondKP = True
-        elif (newReader.Third.iloc[index] == True and thirdKP == False and pd.isnull(newReader['Fourth'].iloc[index]) == True):
-            #print newReader.iloc[[index]]
-            print newReader.Time_stamp.iloc[[index]]
-            thirdKP = True
-        else:
-            if (newReader.Fourth.iloc[index] == True and fourthKP == False 
-                and pd.isnull(newReader['First'].iloc[index]) == False 
-                and pd.isnull(newReader['Second'].iloc[index]) == False 
-                and pd.isnull(newReader['Third'].iloc[index]) == False):
-                print newReader.iloc[[index]]
-                print newReader.Time_stamp.iloc[[index]]
-                fourthKP = True
-                pinFound = True
-            elif (pd.isnull(newReader['Fourth'].iloc[index]) == True and fourthKP == True) : 
-                firstKP = False
-                secondKP = False
-                thirdKP = False
-                fourthKP = False
-    else:
-        pinFound = False
-        print '--------------------------------------------------------------------'
-
-
-# In[ ]:
-
-
-
+main()
