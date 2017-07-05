@@ -15,7 +15,7 @@ try:
     # After the -i, input the video file name to be processed
     # Crops will have to be changed from time to time based on video area/placement
     # With larger videos change the %.png to a larger number than %04d 
-    os.system("ffmpeg -i (insert video file here) -an -vf crop=150:200:990:500,eq=contrast=10 images3/%06d.png") 
+    os.system("ffmpeg -i (insert video file here) -an -vf crop=150:200:990:500,eq=contrast=10 images/%06d.png") 
     # After the -i, input the video file name to be processed, change frames.csv if needed
     os.system("ffprobe -f lavfi -i movie=(insert video file here) -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 >       frames.csv")
     print 'Successful'
