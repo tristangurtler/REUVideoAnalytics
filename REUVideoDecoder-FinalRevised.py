@@ -73,16 +73,7 @@ def is_color_black(r, g, b):
 def is_asterisk_present(image, coord):
     r, g, b = image.getpixel(coord)
     
-    # if the individual color values are similar enough, check if it's black
-    if abs(r - g) <= 5 and abs(b - g) <= 3:
-        if is_color_black(r, g, b):
-            return True
-        elif r, g, b == (255,255,255):
-            return
-        else:
-            return 'NaN'
-    else:
-        return False
+    return is_color_black(r, g, b)
 
 ##
 # This function runs through every frame we collected and checks if asterisks have appeared in each
@@ -198,7 +189,7 @@ def main():
     pin_entries = obtain_timing_sequences(asterisk_appearances)
 
     print "Timings between keystrokes in microseconds:"
-    for single_pin in pin_entries
-        print ", ".join(sublist)
+    for single_pin in pin_entries:
+        print ", ".join(single_pin)
 
 main()
