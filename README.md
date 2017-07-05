@@ -36,6 +36,8 @@ newReader = pd.read_csv('results.csv')
 ```
 ## Needs Implementation
 1. Difference in time frame information between second and first frame of any set
+2. Figure out a way to deal with backspaces/removal of pixel
+3. Figure out a way to deal with "ENTER" Function clearing everything
 
 ## History
 
