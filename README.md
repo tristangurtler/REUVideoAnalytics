@@ -34,6 +34,8 @@ result = result.reindex(columns=['Time_stamp','Background', 'First', 'Second', '
 ```python
 newReader = pd.read_csv('results.csv')
 ```
+## Needs Implementation
+1. Difference in time frame information between second and first frame of any set
 
 ## History
 
