@@ -16,14 +16,14 @@ import csv
 
 # Creates directory for frames to be stored, gets frames of videos, and stores timestamps in a csv file
 try:
-    os.system("mkdir images3")
+    os.system("mkdir images")
     # Contrast with dark video has to be brightened via video editor and then contrast ranges from 12-22
     # After the -i, input the video file name to be processed
     # use crop: 150:200:840:500 for standard, crops will have to be changed from time to time due to video camera placement
     # With larger videos change the %.png to a larger number than 04d 
-    os.system("ffmpeg -ss 00:02:27.000 -i moreWork.mp4 -an -vf crop=150:200:990:500,eq=contrast=10 images3/%06d.png") 
+    os.system("ffmpeg -i [insert.mp4 here] -an -vf crop=150:200:990:500,eq=contrast=10 images/%06d.png") 
     # After the -i, input the video file name to be processed, change frames2.csv if needed
-    os.system("ffprobe -f lavfi -i movie=moreWork.mp4 -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames3.csv")
+    os.system("ffprobe -f lavfi -i movie=[insert.mp4 here] -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
     print 'Successful'
 except:
     print 'Error Occurred'
@@ -73,7 +73,7 @@ def checkForBlack(rgb_val):
 df = pd.DataFrame()
 time_stamp = 0
 frame = 0
-indir = 'images3'
+indir = 'images'
 # f(73,31) s(67,49) t(61,66) fth(58.83), bg(34,24) for standard
 for root, dirs, filenames in os.walk(indir):
     for f in sorted(os.listdir(indir)):
@@ -98,11 +98,11 @@ df.head(10) # Here for debugging purposes
 # In[8]:
 
 # Reads from frames2.csv file and combines to have timestamp and dataframe together
-Time = pd.read_csv("frames3.csv", 
+Time = pd.read_csv("frames.csv", 
                   names = ["Time_stamp"])
 result = pd.concat([df, Time], axis=1, join='inner')
 
-result = result.reindex(columns=['Time_stamp','Background', 'First', 'Second', 'Third', 'Fourth']).to_csv('results3.csv', index=True)
+result = result.reindex(columns=['Time_stamp','Background', 'First', 'Second', 'Third', 'Fourth']).to_csv('results.csv', index=True)
 result
 
 
@@ -110,7 +110,7 @@ result
 
 # Purpose of this is to read results csv file and return only the relevant indexes with specific keypresses
 # need help with outputting the relevant indexes with the True values to another csv (?)
-newReader = pd.read_csv('results3.csv')
+newReader = pd.read_csv('results.csv')
 firstKP = False
 secondKP = False
 thirdKP = False
