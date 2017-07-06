@@ -8,6 +8,7 @@ import sys
 import pandas as pd
 import os
 import csv
+import argparse
 
 # units are frames/second
 VIDEO_RECORDING_FREQUENCY = 120
@@ -36,10 +37,10 @@ def create_CSV_from_video(video_name):
     #
     # Note that we assume the contrast is sufficiently high so that we can better distinguish asterisks from their background
     # (this can be accomplished with external video editors, if necessary)
-    os.system("ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
+    os.system("./ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
 
-    # And convert the frames into a large CSV file for processing
-    os.system("ffprobe -f lavfi -i movie=" + video_name + " -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
+    # # And convert the frames into a large CSV file for processing
+    # os.system("./ffprobe -f lavfi -i movie=" + video_name + " -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
 
 ##
 # This function checks if the image we are looking at is actually a PIN entry screen at all
@@ -183,13 +184,21 @@ def obtain_timing_sequences(asterisk_appearances):
     list_of_all_pin_entries = [[float(x * (10 ** 6)) / VIDEO_RECORDING_FREQUENCY for x in sublist] for sublist in list_of_all_pin_entries]
     return list_of_all_pin_entries
 
-def main():
-    create_CSV_from_video("[insert.mp4 here]")
+def main(args):
+    # create_CSV_from_video(args.video_file)
     asterisk_appearances = find_asterisk_appearances()
     pin_entries = obtain_timing_sequences(asterisk_appearances)
 
     print "Timings between keystrokes in microseconds:"
     for single_pin in pin_entries:
-        print ", ".join(single_pin)
+        printable = [str(x) for x in single_pin]
+        print ", ".join(printable)
 
-main()
+# python video_decoder.py <video_file>
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Process videos for timing data')
+    parser.add_argument('video_file', help='the video file')
+    
+    args = parser.parse_args()
+    
+    main(args)
