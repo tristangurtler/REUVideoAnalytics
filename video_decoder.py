@@ -74,6 +74,29 @@ def is_asterisk_present(image, coord):
     return is_color_black(r, g, b)
 
 ##
+# This function checks at specified locations to determine if an asterisk is present there
+#
+# @input image - the image we want to check if an asterisk has appeared inside of
+# @input coord_topleft - the top left corner of the box we are checking
+# @input coord_bottomright - the bottom right corner of the box we are checking
+# @input threshold - what percentage of pixels should be black to determine that an asterisk has appeared
+# @returns whether or not an asterisk has appeared at the specified location
+def is_asterisk_present_in_area(image, coord_topleft, coord_bottomright, threshold=0.7):
+    total_pixels = 0
+    num_black_pixels = 0
+
+    # range through our box and check for black pixels
+    for x in range(coord_topleft[0], coord_bottomright[0] + 1):
+        for y in range(coord_topleft[1], coord_bottomright[1] + 1):
+            curr = (x,y)
+            r, g, b = image.getpixel(curr)
+            if is_color_black(r, g, b):
+                num_black_pixels += 1
+            total_pixels += 1
+
+    return (float(num_black_pixels) / total_pixels) >= threshold
+
+##
 # This function runs through every frame we collected and checks if asterisks have appeared in each
 #
 # @returns a dictionary where the keys are frame numbers and the values are a list of booleans showing what asterisks have appeared
