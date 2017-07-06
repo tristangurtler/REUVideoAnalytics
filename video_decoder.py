@@ -14,10 +14,10 @@ import argparse
 VIDEO_RECORDING_FREQUENCY = 120
 
 ##
-# This function takes a video and converts it (using system commands) to a CSV file in our current directory
+# This function takes a video and grabs all the individual frames from it
 #
-# @input video_name - the name of the video file we want to convert
-def create_CSV_from_video(video_name):
+# @input video_name - the name of the video file we want to get frames from
+def get_frames_from_video(video_name):
     ##
     # This is a range (from a pixel 150 from the left and 200 from the top,
     # to 990 from the left and 500 from the top) that should be able to
@@ -37,10 +37,7 @@ def create_CSV_from_video(video_name):
     #
     # Note that we assume the contrast is sufficiently high so that we can better distinguish asterisks from their background
     # (this can be accomplished with external video editors, if necessary)
-    os.system("./ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
-
-    # # And convert the frames into a large CSV file for processing
-    # os.system("./ffprobe -f lavfi -i movie=" + video_name + " -show_frames -show_entries frame=pkt_pts_time -of csv=p=0 > frames.csv")
+    os.system("ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
 
 ##
 # This function checks if the image we are looking at is actually a PIN entry screen at all
@@ -185,7 +182,7 @@ def obtain_timing_sequences(asterisk_appearances):
     return list_of_all_pin_entries
 
 def main(args):
-    # create_CSV_from_video(args.video_file)
+    get_frames_from_video(args.video_file)
     asterisk_appearances = find_asterisk_appearances()
     pin_entries = obtain_timing_sequences(asterisk_appearances)
 
