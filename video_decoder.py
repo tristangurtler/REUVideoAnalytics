@@ -19,9 +19,9 @@ VIDEO_RECORDING_FREQUENCY = 120
 # @input video_name - the name of the video file we want to get frames from
 def get_frames_from_video(video_name):
     ##
-    # This is a range (from a pixel 150 from the left and 200 from the top,
-    # to 990 from the left and 500 from the top) that should be able to
-    # capture the PIN entry box in the video (this is determined empirically)
+    # This defines a box with width 150 and height 200 at position (990, 500)
+    # that should be able to capture the PIN entry box in the video
+    # (this is determined empirically)
     frame_cropper_range = "150:200:990:500"
 
     ##
@@ -37,7 +37,7 @@ def get_frames_from_video(video_name):
     #
     # Note that we assume the contrast is sufficiently high so that we can better distinguish asterisks from their background
     # (this can be accomplished with external video editors, if necessary)
-    os.system("ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=10 images/" + image_name_template + ".png") 
+    os.system("ffmpeg -i " + video_name + " -an -vf crop=" + frame_cropper_range + ",eq=contrast=2.0 images/" + image_name_template + ".png") 
 
 ##
 # This function checks if the image we are looking at is actually a PIN entry screen at all
@@ -200,8 +200,8 @@ def obtain_timing_sequences(asterisk_appearances):
                     prev_frame = frame
                     num_asterisks -= 1
 
-    # turn our frame difference timings into real world timings (in microseconds)
-    list_of_all_pin_entries = [[float(x * (10 ** 6)) / VIDEO_RECORDING_FREQUENCY for x in sublist] for sublist in list_of_all_pin_entries]
+    # turn our frame difference timings into real world timings (in milliseconds)
+    list_of_all_pin_entries = [[float(x * (10 ** 3)) / VIDEO_RECORDING_FREQUENCY for x in sublist] for sublist in list_of_all_pin_entries]
     return list_of_all_pin_entries
 
 def main(args):
@@ -209,7 +209,7 @@ def main(args):
     asterisk_appearances = find_asterisk_appearances()
     pin_entries = obtain_timing_sequences(asterisk_appearances)
 
-    print "Timings between keystrokes in microseconds:"
+    print "Timings between keystrokes in milliseconds:"
     for single_pin in pin_entries:
         printable = [str(x) for x in single_pin]
         print ", ".join(printable)
